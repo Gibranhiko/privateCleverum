@@ -1,0 +1,68 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+.venv/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# MyPy
+.mypy_cache/
+
+# PyCharm / JetBrains
+.idea/
+
+# VSCode
+.vscode/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+.env.*
+
+# Streamlit
+.streamlit/
+
+# ChromaDB / index data (do not commit large DB files)
+/index/
+
+# Local data and uploads
+/data/
+*.db
+*.sqlite3
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Python caches
+*.pyc
+
+# Logs
+*.log
+
+# Sentence Transformers / Hugging Face caches (optional)
+# Uncomment to ignore model caches stored in home directories (be cautious)
+# .cache/huggingface/
+# .cache/torch/

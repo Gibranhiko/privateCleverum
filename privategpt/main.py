@@ -57,7 +57,7 @@ class PrivateGPT:
             if not text.strip():
                 return {
                     'success': False,
-                    'message': "No text could be extracted from the file",
+                    'message': "No text could be extracted from the file. It may be a scanned image or an unsupported format.",
                     'doc_info': None
                 }
             

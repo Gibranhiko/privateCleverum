@@ -25,3 +25,11 @@ class EmbeddingService:
     def embed_text(self, text: str) -> List[float]:
         """Generate embedding for a single text."""
         return self.model.encode([text])[0].tolist()
+    
+    def get_embedding(self, text: str) -> List[float]:
+        """Alias for embed_text() for backward compatibility."""
+        return self.embed_text(text)
+    
+    def get_embeddings(self, texts: List[str]) -> List[List[float]]:
+        """Alias for embed_texts() for backward compatibility."""
+        return self.embed_texts(texts)

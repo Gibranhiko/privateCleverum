@@ -6,7 +6,6 @@ ChromaDB handles automatic text embedding generation and vector similarity searc
 """
 
 import chromadb
-from chromadb.errors import InvalidCollectionException
 from typing import List, Dict
 from pathlib import Path
 from .base import VectorStore
@@ -37,7 +36,7 @@ class ChromaVectorStore(VectorStore):
         try:
             # Try to get existing collection
             self.collection = self.client.get_collection(self.collection_name)
-        except (ValueError, InvalidCollectionException):
+        except Exception:
             # Collection doesn't exist, create it
             self.collection = self.client.create_collection(
                 name=self.collection_name,
@@ -47,82 +46,124 @@ class ChromaVectorStore(VectorStore):
                 }
             )
     
-    def add_documents(self, chunk_ids: List[str], texts: List[str], 
-                     metadatas: List[Dict]) -> None:
+    def add_documents(self, chunk_ids: List[str] = None, texts: List[str] = None,
+                      metadatas: List[Dict] = None, documents: List[Dict] = None) -> None:
         """
         Add documents to ChromaDB collection.
-        
-        Args:
-            chunk_ids: Unique identifiers for each text chunk
-            texts: List of text content to store
-            metadatas: List of metadata dicts for each chunk
-            
-        Raises:
-            ValueError: If input lists have different lengths
+
+        Supports two calling styles for backward compatibility:
+        - add_documents(chunk_ids, texts, metadatas)
+        - add_documents(documents=[{ 'id', 'text', 'embedding'(opt), 'metadata' }, ...])
+
+        If embeddings are provided in the document dicts they will be passed to Chroma.
         """
-        if not (len(chunk_ids) == len(texts) == len(metadatas)):
-            raise ValueError("All input lists must have the same length")
-        
-        if not chunk_ids:  # Empty input
+        # Normalize inputs to lists of ids, texts, metadatas, and optional embeddings
+        ids = []
+        docs = []
+        metas = []
+        embeddings = None
+
+        # If caller passed a list of document dicts
+        if documents is None and isinstance(chunk_ids, list) and chunk_ids and isinstance(chunk_ids[0], dict):
+            documents = chunk_ids
+
+        if documents:
+            for d in documents:
+                ids.append(d.get('id'))
+                docs.append(d.get('text') or d.get('document') or '')
+                metas.append(d.get('metadata') or d.get('metadatas') or {})
+                if 'embedding' in d:
+                    if embeddings is None:
+                        embeddings = []
+                    embeddings.append(d.get('embedding'))
+        else:
+            # Fallback to old signature
+            if not (chunk_ids and texts and metadatas):
+                # Nothing to add
+                return
+            if not (len(chunk_ids) == len(texts) == len(metadatas)):
+                raise ValueError('All input lists must have the same length')
+            ids = chunk_ids
+            docs = texts
+            metas = metadatas
+
+        if not ids:
             return
-        
+
         try:
-            self.collection.add(
-                ids=chunk_ids,
-                documents=texts,
-                metadatas=metadatas
-            )
+            add_kwargs = {
+                'ids': ids,
+                'documents': docs,
+                'metadatas': metas
+            }
+            if embeddings is not None:
+                add_kwargs['embeddings'] = embeddings
+
+            self.collection.add(**add_kwargs)
         except Exception as e:
             raise ValueError(f"Failed to add documents to ChromaDB: {e}")
     
-    def search(self, query: str, k: int = 5) -> List[Dict]:
+    def search(self, query, k: int = 5) -> List[Dict]:
         """
         Search for semantically similar documents.
-        
-        Args:
-            query: Search query text
-            k: Number of results to return
-            
-        Returns:
-            List[Dict]: Search results with text, metadata, and relevance scores
+
+        `query` may be either a text string or an embedding vector (list of floats).
         """
-        if not query.strip():
+        # Empty query handling
+        if query is None:
             return []
-        
-        if self.collection.count() == 0:
+
+        # If collection empty
+        try:
+            total = self.collection.count()
+        except Exception:
+            total = 0
+
+        if total == 0:
             return []
-        
+
         try:
             # Limit k to available documents
-            k = min(k, self.collection.count())
-            
-            results = self.collection.query(
-                query_texts=[query],
-                n_results=k
-            )
-            
+            k = min(k, total)
+
+            # Detect whether query is embedding vector or text
+            if isinstance(query, (list, tuple)):
+                results = self.collection.query(
+                    query_embeddings=[list(query)],
+                    n_results=k
+                )
+            else:
+                if not str(query).strip():
+                    return []
+                results = self.collection.query(
+                    query_texts=[str(query)],
+                    n_results=k
+                )
+
             search_results = []
-            
-            # Check if we got results
-            if (results['documents'] and results['documents'][0] and
-                results['metadatas'] and results['metadatas'][0] and
-                results['distances'] and results['distances'][0]):
-                
-                for doc, metadata, distance in zip(
-                    results['documents'][0],
-                    results['metadatas'][0], 
-                    results['distances'][0]
-                ):
+
+            # Normalize result structure
+            docs_list = results.get('documents', [])
+            metas_list = results.get('metadatas', [])
+            dists_list = results.get('distances', [])
+
+            if docs_list and metas_list:
+                docs = docs_list[0] if isinstance(docs_list[0], list) else docs_list
+                metas = metas_list[0] if isinstance(metas_list[0], list) else metas_list
+                dists = dists_list[0] if dists_list and isinstance(dists_list[0], list) else (dists_list or [None]*len(docs))
+
+                for doc, metadata, distance in zip(docs, metas, dists):
                     search_results.append({
                         'text': doc,
+                        'metadata': metadata,
                         'filename': metadata.get('filename', 'unknown'),
                         'doc_id': metadata.get('doc_id', 'unknown'),
                         'chunk_id': metadata.get('chunk_id', 'unknown'),
-                        'relevance_score': round(1 - distance, 3)  # Convert distance to similarity
+                        'relevance_score': round(1 - distance, 3) if distance is not None else None
                     })
-            
+
             return search_results
-            
+
         except Exception as e:
             print(f"ChromaDB search error: {e}")
             return []

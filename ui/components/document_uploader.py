@@ -34,6 +34,8 @@ class DocumentManager:
         """Process and add uploaded files to the system."""
         progress_bar = st.progress(0)
         status_text = st.empty()
+        successful_count = 0
+        errors = []
         
         for idx, uploaded_file in enumerate(uploaded_files):
             # Update progress
@@ -42,22 +44,33 @@ class DocumentManager:
             status_text.text(f"Processing {uploaded_file.name}...")
             
             # Process individual file
-            success = self._process_single_file(uploaded_file)
-            
-            if not success:
-                st.error(f"Failed to process {uploaded_file.name}")
+            success, error_msg = self._process_single_file(uploaded_file)
+            if success:
+                successful_count += 1
+            elif error_msg:
+                errors.append(f"**{uploaded_file.name}**: {error_msg}")
         
         # Clean up progress indicators
         progress_bar.empty()
         status_text.empty()
-        st.success(f"✅ Successfully processed {len(uploaded_files)} file(s)!")
         
-        # Refresh the page to show new documents
-        time.sleep(1)
-        st.rerun()
+        # Show results
+        if successful_count > 0:
+            st.success(f"✅ Successfully processed {successful_count} file(s)!")
+            if errors:
+                with st.expander(f"⚠️ {len(errors)} file(s) failed (click to see details)"):
+                    for error in errors:
+                        st.markdown(error)
+            # Refresh the page to show new documents
+            time.sleep(1)
+            st.rerun()
+        elif len(uploaded_files) > 0:
+            st.error(f"❌ Could not process any of the {len(uploaded_files)} file(s):")
+            for error in errors:
+                st.markdown(f"• {error}")
     
     def _process_single_file(self, uploaded_file):
-        """Process a single uploaded file."""
+        """Process a single uploaded file. Returns (success, error_msg)."""
         with tempfile.NamedTemporaryFile(delete=False, suffix=f"_{uploaded_file.name}") as tmp_file:
             tmp_file.write(uploaded_file.read())
             tmp_path = tmp_file.name
@@ -72,14 +85,12 @@ class DocumentManager:
                         st.write(f"**Document ID:** {result['doc_info']['doc_id']}")
                         st.write(f"**Chunks created:** {result['doc_info']['num_chunks']}")
                         st.write(f"**File size:** {len(uploaded_file.getvalue()) / 1024:.1f} KB")
-                return True
+                return True, None
             else:
-                st.error(f"Error: {result['message']}")
-                return False
+                return False, result['message']
                 
         except Exception as e:
-            st.error(f"Exception processing {uploaded_file.name}: {str(e)}")
-            return False
+            return False, str(e)
         
         finally:
             # Clean up temporary file
