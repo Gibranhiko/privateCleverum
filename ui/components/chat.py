@@ -45,51 +45,9 @@ class ChatInterface:
             return False
     
     def _display_chat_settings(self):
-        """Display chat settings: only advanced filters for end users."""
-        with st.expander("⚙️ Filtros avanzados", expanded=True):
-            fcol1, fcol2, fcol3 = st.columns(3)
-
-            with fcol1:
-                patient_filter = st.text_input(
-                    "Paciente (nombre)",
-                    key="filter_patient_name",
-                    help="Filtra resultados por nombre del paciente"
-                )
-            with fcol2:
-                # Mostrar en español pero mapear a valores internos
-                topic_labels = ["(todos)", "Pacientes", "Citas", "Tratamientos", "Políticas", "FAQs", "General"]
-                label_to_value = {
-                    "Pacientes": "patients",
-                    "Citas": "appointments",
-                    "Tratamientos": "treatments",
-                    "Políticas": "policies",
-                    "FAQs": "faqs",
-                    "General": "general",
-                }
-                topic_label = st.selectbox(
-                    "Tema",
-                    topic_labels,
-                    key="filter_topic",
-                    help="Filtra por tema detectado en metadatos"
-                )
-            with fcol3:
-                date_filter = st.text_input(
-                    "Fecha contiene (YYYY-MM)",
-                    key="filter_date_contains",
-                    help="Coincidencia simple en texto de fecha"
-                )
-
-            filters = {}
-            if patient_filter.strip():
-                # Expect normalized_name in metadata
-                from privategpt.core.utils.helpers import normalize_text
-                filters["normalized_name"] = normalize_text(patient_filter.strip())
-            if topic_label and topic_label != "(todos)":
-                filters["topic"] = label_to_value.get(topic_label)
-            # Note: date filter is simplistic; could be enhanced via where_document
-            # Persist filters in session state so submit uses them
-            st.session_state['filters'] = filters
-            st.session_state['date_contains'] = date_filter.strip()
+        """Display minimal chat settings for MVP."""
+        # No advanced filters in MVP; keep placeholder if needed later.
+        return
     
     def _display_chat_history(self):
         """Display the conversation history."""
@@ -101,7 +59,7 @@ class ChatInterface:
         
         with chat_container:
             if not st.session_state.chat_history:
-                st.info("👋 ¡Comienza una conversación preguntando sobre tus documentos!")
+                # Minimal MVP: no greeting/info when chat is empty
                 return
             
             for idx, message in enumerate(st.session_state.chat_history):
@@ -129,25 +87,7 @@ class ChatInterface:
                 self._display_sources(message["sources"], message_idx)
 
             # Metrics panel in an expander similar to sources
-            metrics = message.get("metrics")
-            if metrics:
-                with st.expander("📊 Métricas", expanded=False):
-                    col1, col2 = st.columns(2)
-                    with col1:
-                        st.metric(label="Top K", value=metrics.get("top_k", 0))
-                    with col2:
-                        st.metric(label="Score promedio", value=metrics.get("avg_score", 0))
-                    active_filters = metrics.get("filters", {})
-                    if any(v for v in active_filters.values()):
-                        st.markdown("**Filtros activos**")
-                        st.code(active_filters, language="json")
-                    # Debug info
-                    if metrics.get("where_clause") is not None:
-                        st.markdown("**Where clause**")
-                        st.code(metrics.get("where_clause"), language="json")
-                    if metrics.get("query_preview"):
-                        st.markdown("**Query preview**")
-                        st.code(metrics.get("query_preview"))
+            # Metrics panel removed for minimal MVP
     
     def _display_sources(self, sources, message_idx):
         """Display source citations for a message."""
@@ -222,17 +162,11 @@ class ChatInterface:
         # Generate AI response
         with st.spinner("🤔 Pensando..."):
             try:
-                # Retrieve filters from session state
-                filters = st.session_state.get('filters', {})
-                date_contains = st.session_state.get('date_contains')
-                if date_contains:
-                    filters = dict(filters)
-                    filters['date'] = date_contains
+                # Minimal MVP: no filters; simple generate_answer call
                 response = self.private_gpt.generate_answer(
-                    user_question, 
-                    settings['model'], 
-                    settings['max_chunks'],
-                    filters=filters
+                    user_question,
+                    settings['model'],
+                    settings['max_chunks']
                 )
                 
                 # Add AI response to history
@@ -264,25 +198,10 @@ class ChatInterface:
         st.rerun()
     
     def _display_chat_controls(self):
-        """Display chat control buttons."""
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            if st.button("🗑️ Limpiar chat", help="Limpiar historial de conversación"):
-                self._clear_chat()
-        
-        with col2:
-            if st.button("💾 Exportar chat", help="Exportar conversación como texto"):
-                self._export_chat()
-        
-        with col3:
-            if st.button("🔄 Regenerar última", help="Regenerar la última respuesta de IA"):
-                self._regenerate_last_response()
-        
-        with col4:
-            # Chat statistics
-            total_messages = len(st.session_state.get('chat_history', []))
-            st.caption(f"💬 {total_messages} mensajes")
+        """Minimal MVP: no chat control buttons."""
+        # Optionally show simple message count
+        total_messages = len(st.session_state.get('chat_history', []))
+        st.caption(f"💬 {total_messages} mensajes")
     
     def _clear_chat(self):
         """Clear the chat history after confirmation."""

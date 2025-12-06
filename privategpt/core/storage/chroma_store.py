@@ -128,25 +128,16 @@ class ChromaVectorStore(VectorStore):
 
             # Detect whether query is embedding vector or text
             if isinstance(query, (list, tuple)):
-                # Avoid passing empty filter dicts which some Chroma versions reject
-                effective_where = where if where else None
-                effective_where_doc = where_document if where_document else None
                 results = self.collection.query(
                     query_embeddings=[list(query)],
-                    n_results=k,
-                    where=effective_where,
-                    where_document=effective_where_doc
+                    n_results=k
                 )
             else:
                 if not str(query).strip():
                     return []
-                effective_where = where if where else None
-                effective_where_doc = where_document if where_document else None
                 results = self.collection.query(
                     query_texts=[str(query)],
-                    n_results=k,
-                    where=effective_where,
-                    where_document=effective_where_doc
+                    n_results=k
                 )
 
             search_results = []

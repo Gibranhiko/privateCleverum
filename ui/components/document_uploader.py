@@ -169,9 +169,8 @@ class DocumentManager:
                 st.metric("Tamaño", f"{size_mb:.1f}MB")
             
             with col4:
-                # Document actions
-                if st.button("📖 Ver", key=f"view_{doc.get('doc_id')}", help="Ver detalles del documento"):
-                    self._show_document_details(doc)
+                # Removed 'Ver' button for minimal MVP
+                st.empty()
             
             with col5:
                   if st.button("🗑️ Eliminar", key=f"delete_{doc.get('doc_id')}", 

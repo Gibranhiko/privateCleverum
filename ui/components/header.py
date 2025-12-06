@@ -1,7 +1,7 @@
 # components/header.py
 import streamlit as st
 
-def display_header(title="CleverumGPT", subtitle="Tu asistente de documentos con IA"):
+def display_header(title="CleverumGPT", subtitle=None):
     """
     Display the main application header with customizable title and subtitle.
     
@@ -12,7 +12,6 @@ def display_header(title="CleverumGPT", subtitle="Tu asistente de documentos con
     st.markdown(f"""
     <div class="main-header">
         <h1>🤖 {title}</h1>
-        <p>{subtitle}</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -31,16 +30,6 @@ def display_page_header(page_title, icon="📄"):
     """, unsafe_allow_html=True)
 
 def display_welcome_message():
-    """Mostrar un mensaje de bienvenida para nuevos usuarios."""
-    st.markdown("""
-    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
-                color: white; padding: 1.5rem; border-radius: 12px; margin: 1rem 0;">
-        <p>Sube tus documentos y comienza a chatear con tu asistente de IA. 
-           Tus datos permanecen privados y seguros en tu equipo local.</p>
-        <ul>
-            <li>📁 Subir documentos (PDF, TXT, DOCX, MD)</li>
-            <li>💬 Chatear con tus documentos usando IA</li>
-            <li>📊 Monitorear estadísticas y rendimiento del sistema</li>
-        </ul>
-    </div>
-    """, unsafe_allow_html=True)
+    """Mensaje de bienvenida minimal para MVP."""
+    # Removido: explicación larga y bullets para mantener MVP limpio
+    return
