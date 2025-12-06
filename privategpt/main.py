@@ -184,13 +184,30 @@ class PrivateGPT:
             'avg_score': round(sum([(r.get('relevance_score') or 0) for r in search_results]) / max(len(search_results),1), 3),
         }
 
+        # Build unique sources by filename to avoid duplicates in UI
+        unique_sources: Dict[str, Dict[str, any]] = {}
+        for r in search_results:
+            meta = r.get('metadata', {})
+            fname = meta.get('filename', 'Unknown')
+            score = r.get('relevance_score') or 0
+            # Keep the best scoring chunk per filename
+            existing = unique_sources.get(fname)
+            if not existing or score > (existing.get('score') or 0):
+                unique_sources[fname] = {
+                    'filename': fname,
+                    'page': meta.get('page'),
+                    'score': score,
+                    'content': r.get('text', r.get('document', '')),
+                }
+        deduped_sources = list(unique_sources.values())
+
         # Generate answer using AI service if available
         if self.ai_service.available:
             try:
                 answer = self.ai_service.generate_answer(context, question, model)
                 return {
                     'answer': answer,
-                    'sources': search_results,
+                    'sources': deduped_sources,
                     'has_sources': True,
                     'ollama_used': True,
                     'context': context,
@@ -199,7 +216,7 @@ class PrivateGPT:
             except Exception as e:
                 return {
                     'answer': f"Error generating AI response: {str(e)}",
-                    'sources': search_results,
+                    'sources': deduped_sources,
                     'has_sources': True,
                     'ollama_used': False,
                     'context': context,
@@ -208,7 +225,7 @@ class PrivateGPT:
         else:
             return {
                 'answer': "No hay modelo AI disponible. Pasajes relevantes:",
-                'sources': search_results,
+                'sources': deduped_sources,
                 'has_sources': True,
                 'ollama_used': False,
                 'context': context,
