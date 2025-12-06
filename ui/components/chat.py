@@ -137,7 +137,7 @@ class ChatInterface:
                 )
             
             with col2:
-                send_button = st.form_submit_button("Enviar 📤", type="primary", use_container_width=True)
+                send_button = st.form_submit_button("Enviar", type="primary", use_container_width=True)
         
         # Process input when form is submitted
         if send_button and user_question.strip():

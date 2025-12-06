@@ -14,8 +14,9 @@ from privategpt.main import PrivateGPT
 from ui.components.styles import apply_custom_css
 from ui.components.header import display_header, display_welcome_message
 from ui.components.sidebar import (
-    display_system_status, display_navigation_menu, display_help_section, display_danger_zone
+    display_navigation_menu, display_help_section, display_danger_zone
 )
+from ui.components.statistics import display_system_status_main
 from ui.components.chat import ChatInterface
 from ui.components.document_uploader import DocumentManager
 
@@ -39,7 +40,6 @@ private_gpt = st.session_state.private_gpt
 
 # --- Sidebar ---
 nav = display_navigation_menu()
-system_ok = display_system_status(private_gpt)
 danger_action = display_danger_zone()
 display_help_section()
 
@@ -48,14 +48,6 @@ if danger_action == "clear_all":
     result = private_gpt.clear_all_documents()
     if result['success']:
         st.sidebar.success("✅ All data cleared!")
-        st.experimental_rerun()
-    else:
-        st.sidebar.error(f"Error: {result['message']}")
-elif danger_action == "reset_system":
-    # For now, just clear all documents (extend as needed)
-    result = private_gpt.clear_all_documents()
-    if result['success']:
-        st.sidebar.success("✅ System reset!")
         st.experimental_rerun()
     else:
         st.sidebar.error(f"Error: {result['message']}")
@@ -73,14 +65,7 @@ elif nav == "chat":
     chat = ChatInterface(private_gpt)
     chat.display_chat_interface()
 elif nav == "statistics":
-    st.subheader("📈 Estadísticas del sistema")
-    stats = private_gpt.get_document_stats() if hasattr(private_gpt, 'get_document_stats') else {}
-    if stats:
-        st.json(stats)
-    else:
-        st.info("¡La funcionalidad de estadísticas llegará pronto!")
-elif nav == "settings":
-    st.subheader("⚙️ Configuración")
-    st.info("¡La página de configuración llegará pronto!")
+    # Mostrar estado del sistema en la sección de estadísticas
+    display_system_status_main(private_gpt)
 else:
     st.info("Selecciona una página desde la barra lateral.")

@@ -24,7 +24,7 @@ def display_page_header(page_title, icon="📄"):
         icon (str): Emoji icon to display
     """
     st.markdown(f"""
-    <div style="text-align: center; padding: 1rem 0; margin-bottom: 1rem;">
+    <div style="text-align: left; padding: 1rem 0; margin-bottom: 1rem;">
         <h2>{icon} {page_title}</h2>
     </div>
     """, unsafe_allow_html=True)

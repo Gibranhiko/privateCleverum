@@ -90,64 +90,40 @@ def display_model_settings():
     }
 
 def display_navigation_menu():
-    """Mostrar navegación en la barra lateral con enlaces simples."""
-    st.sidebar.title("🧭 Navegación")
-
+    """Mostrar navegación con botones y resaltar el activo."""
     nav_order = [
         ("📁 Documentos", "documents"),
         ("💬 Chat", "chat"),
         ("📈 Estadísticas", "statistics"),
-        ("⚙️ Configuración", "settings"),
     ]
 
+    # Default selection: Chat
     if 'current_nav' not in st.session_state:
-        st.session_state.current_nav = "documents"
+        st.session_state.current_nav = "chat"
 
     for label, key in nav_order:
-        clicked = st.sidebar.button(label, use_container_width=True, key=f"nav_{key}")
-        if clicked:
-            st.session_state.current_nav = key
-            st.rerun()
+        if st.session_state.current_nav == key:
+            # Active item: show highlighted label instead of a clickable button
+            st.sidebar.markdown(f"**{label}** ✅")
+        else:
+            # Ensure left alignment: avoid full-width buttons
+            clicked = st.sidebar.button(label, key=f"nav_{key}")
+            if clicked:
+                st.session_state.current_nav = key
+                st.rerun()
 
     return st.session_state.current_nav
 
 def display_help_section():
-    """Mostrar ayuda y enlaces de documentación."""
-    st.sidebar.title("❓ Ayuda e información")
-    
-    with st.sidebar.expander("📖 Guía rápida"):
-        st.markdown("""
-        1. **Cargar documentos**: Ve a la pestaña Documentos y sube tus archivos
-        2. **Espera el procesamiento**: Serán procesados e indexados
-        3. **Comienza a chatear**: Ve a la pestaña Chat y pregunta
-        4. **Monitorea**: Revisa Estadísticas para información del sistema
-        """)
-    
-    with st.sidebar.expander("🔧 Resolución de problemas"):
-        st.markdown("""
-        **Problemas comunes:**
-        - Si Ollama está offline, inícialo con `ollama serve`
-        - Formatos soportados: PDF, TXT, DOCX, MD
-        - Archivos grandes tardan en procesar
-        - Limpia la caché del navegador si la UI se bloquea
-        """)
-    
-    # Links
-    st.sidebar.markdown("---")
-    st.sidebar.markdown("**Recursos:**")
-    st.sidebar.markdown("• [Documentación](https://github.com/your-repo)")
-    st.sidebar.markdown("• [Reportar issues](https://github.com/your-repo/issues)")
-    st.sidebar.markdown("• [Configuración de Ollama](https://ollama.ai)")
+    """Sección de ayuda/recursos deshabilitada para MVP."""
+    return
 
 def display_danger_zone():
-    """Mostrar acciones peligrosas con advertencias."""
+    """Mostrar acciones peligrosas dentro de un ítem expandible, estilo enlaces."""
     with st.sidebar.expander("⚠️ Zona de peligro", expanded=False):
-        st.warning("¡Estas acciones no se pueden deshacer!")
-        
-        if st.button("🗑️ Borrar todos los datos", type="secondary"):
+        # Texto de advertencia breve
+        st.caption("Estas acciones no se pueden deshacer.")
+        # Sub-opciones estilo enlace (botones con CSS de enlace)
+        if st.button("🗑️ Borrar todos los datos", key="dz_clear_all"):
             return "clear_all"
-        
-        if st.button("🔄 Reiniciar sistema", type="secondary"):
-            return "reset_system"
-    
     return None

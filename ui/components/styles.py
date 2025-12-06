@@ -6,7 +6,7 @@ def apply_custom_css():
     st.markdown("""
     <style>
         .main-header {
-            text-align: center;
+            text-align: left;
             padding: 0.5rem 0;
             color: black;
             margin-bottom: 1rem;
@@ -25,7 +25,7 @@ def apply_custom_css():
             color: white;
             padding: 1rem;
             border-radius: 10px;
-            text-align: center;
+            text-align: left;
             margin: 0.2rem;
         }
         
@@ -80,6 +80,7 @@ def apply_custom_css():
             border-radius: 8px;
             padding: 1rem;
             margin: 0.5rem 0;
+            text-align: left;
         }
         
         .document-card:hover {
@@ -100,6 +101,28 @@ def apply_custom_css():
             padding: 1.5rem;
             border-radius: 12px;
             margin: 1rem 0;
+            text-align: left;
         }
+
+        /* Make sidebar navigation buttons look like links */
+        section[data-testid="stSidebar"] .stButton > button {
+            background: none !important;
+            border: none !important;
+            color: #0a66c2 !important; /* link color */
+            text-align: left !important;
+            padding: 0.25rem 0 !important;
+            box-shadow: none !important;
+        }
+        section[data-testid="stSidebar"] .stButton > button:hover {
+            text-decoration: underline;
+            background: transparent !important;
+        }
+        /* Radio to look like plain links (if used) */
+        section[data-testid="stSidebar"] .stRadio > div { gap: 0.25rem; }
+        section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label { font-weight: 400; }
+        section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] svg { display: none; }
+        section[data-testid="stSidebar"] .stRadio div[role="radiogroup"] label:hover { text-decoration: underline; }
+        /* Highlight current selection via caption style */
+        section[data-testid="stSidebar"] .st-emotion-cache-1jicfl2 { color: #0a66c2; font-weight: 600; }
     </style>
     """, unsafe_allow_html=True)
