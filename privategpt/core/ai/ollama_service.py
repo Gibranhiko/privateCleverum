@@ -7,6 +7,7 @@ Provides integration with Ollama local AI models.
 import requests
 from typing import Dict, List, Optional, Any
 from .base import AIService
+import logging
 
 
 class OllamaService(AIService):
@@ -72,6 +73,12 @@ Contexto:
 Pregunta: {question}
 
 Respuesta:"""
+        # Debug: log prompt preview to terminal for inspection
+        try:
+            preview = prompt[:500]
+            logging.info("[OllamaService] Prompt preview (first 500 chars)=%s", preview)
+        except Exception:
+            pass
         
         # Merge additional options
         options = {

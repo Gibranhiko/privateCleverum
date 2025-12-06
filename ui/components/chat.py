@@ -127,28 +127,27 @@ class ChatInterface:
             # Display sources if available
             if "sources" in message and message["sources"]:
                 self._display_sources(message["sources"], message_idx)
-            
-            # Display feedback buttons
-            self._display_message_feedback(message_idx)
-				
-            # Metrics panel
+
+            # Metrics panel in an expander similar to sources
             metrics = message.get("metrics")
             if metrics:
-                st.markdown("### Métricas de búsqueda")
-                col1, col2 = st.columns(2)
-                with col1:
+                with st.expander("📊 Métricas", expanded=False):
+                    col1, col2 = st.columns(2)
+                    with col1:
                         st.metric(label="Top K", value=metrics.get("top_k", 0))
-                with col2:
+                    with col2:
                         st.metric(label="Score promedio", value=metrics.get("avg_score", 0))
-                # Active filters summary
-                active_filters = metrics.get("filters", {})
-                if any(v for v in active_filters.values()):
-                    st.caption(
-                        f"Filtros activos: "
-                        f"paciente='{active_filters.get('patient', '')}', "
-                        f"tema='{active_filters.get('topic', '')}', "
-                        f"fecha='{active_filters.get('date', '')}'"
-                    )
+                    active_filters = metrics.get("filters", {})
+                    if any(v for v in active_filters.values()):
+                        st.markdown("**Filtros activos**")
+                        st.code(active_filters, language="json")
+                    # Debug info
+                    if metrics.get("where_clause") is not None:
+                        st.markdown("**Where clause**")
+                        st.code(metrics.get("where_clause"), language="json")
+                    if metrics.get("query_preview"):
+                        st.markdown("**Query preview**")
+                        st.code(metrics.get("query_preview"))
     
     def _display_sources(self, sources, message_idx):
         """Display source citations for a message."""
@@ -169,29 +168,11 @@ class ChatInterface:
                     if 'score' in source:
                         st.caption(f"Relevancia: {source['score']:.2f}")
         
-        # Create source tags
-        sources_html = "".join([
-            f'<span class="source-tag">{source.get("filename", "Unknown")}</span>' 
-            for source in sources
-        ])
-        st.markdown(f"**Fuentes:** {sources_html}", unsafe_allow_html=True)
+        # Remove redundant source pills display (now shown only inside expander)
     
     def _display_message_feedback(self, message_idx):
-        """Display feedback buttons for AI messages."""
-        col1, col2, col3, col4 = st.columns([1, 1, 1, 6])
-        
-        with col1:
-            if st.button("👍", key=f"thumbs_up_{message_idx}", help="Buena respuesta"):
-                self._record_feedback(message_idx, "positive")
-        
-        with col2:
-            if st.button("👎", key=f"thumbs_down_{message_idx}", help="Respuesta pobre"):
-                self._record_feedback(message_idx, "negative")
-        
-        with col3:
-            if st.button("📋", key=f"copy_{message_idx}", help="Copiar al portapapeles"):
-                # In a real app, you'd implement clipboard functionality
-                st.toast("¡Respuesta copiada al portapapeles!")
+        """Feedback UI removed per user request."""
+        return
     
     def _record_feedback(self, message_idx, feedback_type):
         """Record user feedback for improving responses."""
@@ -241,11 +222,17 @@ class ChatInterface:
         # Generate AI response
         with st.spinner("🤔 Pensando..."):
             try:
+                # Retrieve filters from session state
+                filters = st.session_state.get('filters', {})
+                date_contains = st.session_state.get('date_contains')
+                if date_contains:
+                    filters = dict(filters)
+                    filters['date'] = date_contains
                 response = self.private_gpt.generate_answer(
                     user_question, 
                     settings['model'], 
                     settings['max_chunks'],
-                    filters=settings.get('filters')
+                    filters=filters
                 )
                 
                 # Add AI response to history

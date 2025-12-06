@@ -7,6 +7,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 import streamlit as st
+import logging
 from privategpt.main import PrivateGPT
 
 # UI components
@@ -27,6 +28,9 @@ st.set_page_config(
 )
 
 apply_custom_css()
+
+# Configure logging to show in terminal
+logging.basicConfig(level=logging.INFO, format='[%(levelname)s] %(message)s')
 
 # --- Instantiate Core Logic ---
 if 'private_gpt' not in st.session_state:
