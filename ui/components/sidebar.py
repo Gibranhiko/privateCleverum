@@ -3,12 +3,12 @@ import streamlit as st
 
 def display_system_status(private_gpt_instance):
     """
-    Display system status information in the sidebar.
+    Mostrar el estado del sistema en la barra lateral.
     
     Args:
-        private_gpt_instance: Instance of PrivateGPT class
+        private_gpt_instance: Instancia de la clase PrivateGPT
     """
-    st.sidebar.title("📊 System Status")
+    st.sidebar.title("📊 Estado del sistema")
     
     if not private_gpt_instance:
         st.sidebar.error("❌ System not initialized")
@@ -18,32 +18,32 @@ def display_system_status(private_gpt_instance):
         status = private_gpt_instance.get_system_status()
         
         # Ollama status
-        ollama_status = "🟢 Online" if status['ollama_available'] else "🔴 Offline"
+        ollama_status = "🟢 En línea" if status['ollama_available'] else "🔴 Fuera de línea"
         st.sidebar.markdown(f"""
         <div class="status-card">
-            <strong>Ollama Status:</strong> {ollama_status}
+            <strong>Estado de Ollama:</strong> {ollama_status}
         </div>
         """, unsafe_allow_html=True)
         
         # Metrics in columns
         col1, col2 = st.sidebar.columns(2)
         with col1:
-            st.metric("Documents", status['total_documents'])
+            st.metric("Documentos", status['total_documents'])
         with col2:
-            st.metric("Chunks", status['total_chunks'])
+            st.metric("Fragmentos", status['total_chunks'])
         
         # Additional info
-        st.sidebar.markdown(f"**Embedding Model:** {status['embedding_model']}")
+        st.sidebar.markdown(f"**Modelo de embeddings:** {status['embedding_model']}")
         
         # Status indicators
         if status['total_documents'] == 0:
-            st.sidebar.warning("📝 No documents uploaded")
+            st.sidebar.warning("📝 No hay documentos cargados")
         else:
             efficiency = status['total_chunks'] / status['total_documents']
-            st.sidebar.success(f"⚡ Avg {efficiency:.1f} chunks/doc")
+            st.sidebar.success(f"⚡ Promedio {efficiency:.1f} fragmentos/doc")
         
         # Refresh button
-        if st.sidebar.button("🔄 Refresh Status"):
+        if st.sidebar.button("🔄 Actualizar estado"):
             st.rerun()
         
         return True
@@ -53,34 +53,34 @@ def display_system_status(private_gpt_instance):
         return False
 
 def display_model_settings():
-    """Display model and configuration settings in sidebar."""
-    st.sidebar.title("⚙️ Settings")
+    """Mostrar configuración del modelo en la barra lateral."""
+    st.sidebar.title("⚙️ Configuración")
     
     # Model selection
     available_models = ["llama3.2", "llama2", "codellama", "mistral", "phi"]
     selected_model = st.sidebar.selectbox(
-        "AI Model", 
+        "Modelo de IA", 
         available_models, 
-        help="Select the AI model for responses"
+        help="Selecciona el modelo de IA para las respuestas"
     )
     
     # Retrieval settings
     max_chunks = st.sidebar.slider(
-        "Max Sources", 
+        "Máx. fuentes", 
         min_value=1, 
         max_value=10, 
         value=3,
-        help="Maximum number of document chunks to use as context"
+        help="Número máximo de fragmentos de documento como contexto"
     )
     
     # Temperature setting
     temperature = st.sidebar.slider(
-        "Response Creativity",
+        "Creatividad de la respuesta",
         min_value=0.0,
         max_value=1.0,
         value=0.7,
         step=0.1,
-        help="Higher values make responses more creative but less focused"
+        help="Valores altos hacen respuestas más creativas pero menos enfocadas"
     )
     
     return {
@@ -90,62 +90,64 @@ def display_model_settings():
     }
 
 def display_navigation_menu():
-    """Display navigation menu in sidebar."""
-    st.sidebar.title("🧭 Navigation")
-    
-    # Navigation options
-    nav_options = {
-        "📁 Documents": "documents",
-        "💬 Chat": "chat", 
-        "📈 Statistics": "statistics",
-        "⚙️ Settings": "settings"
-    }
-    
-    selected_nav = st.sidebar.radio(
-        "Go to:",
-        list(nav_options.keys()),
-        label_visibility="collapsed"
-    )
-    
-    return nav_options[selected_nav]
+    """Mostrar navegación en la barra lateral con enlaces simples."""
+    st.sidebar.title("🧭 Navegación")
+
+    nav_order = [
+        ("📁 Documentos", "documents"),
+        ("💬 Chat", "chat"),
+        ("📈 Estadísticas", "statistics"),
+        ("⚙️ Configuración", "settings"),
+    ]
+
+    if 'current_nav' not in st.session_state:
+        st.session_state.current_nav = "documents"
+
+    for label, key in nav_order:
+        clicked = st.sidebar.button(label, use_container_width=True, key=f"nav_{key}")
+        if clicked:
+            st.session_state.current_nav = key
+            st.rerun()
+
+    return st.session_state.current_nav
 
 def display_help_section():
-    """Display help and documentation links."""
-    st.sidebar.title("❓ Help & Info")
+    """Mostrar ayuda y enlaces de documentación."""
+    st.sidebar.title("❓ Ayuda e información")
     
-    with st.sidebar.expander("📖 Quick Start Guide"):
+    with st.sidebar.expander("📖 Guía rápida"):
         st.markdown("""
-        1. **Upload Documents**: Go to Documents tab and upload your files
-        2. **Wait for Processing**: Documents will be processed and indexed
-        3. **Start Chatting**: Go to Chat tab and ask questions
-        4. **Monitor Stats**: Check Statistics tab for system info
+        1. **Cargar documentos**: Ve a la pestaña Documentos y sube tus archivos
+        2. **Espera el procesamiento**: Serán procesados e indexados
+        3. **Comienza a chatear**: Ve a la pestaña Chat y pregunta
+        4. **Monitorea**: Revisa Estadísticas para información del sistema
         """)
     
-    with st.sidebar.expander("🔧 Troubleshooting"):
+    with st.sidebar.expander("🔧 Resolución de problemas"):
         st.markdown("""
-        **Common Issues:**
-        - If Ollama is offline, start it with `ollama serve`
-        - Supported formats: PDF, TXT, DOCX, MD
-        - Large files may take time to process
-        - Clear browser cache if UI seems stuck
+        **Problemas comunes:**
+        - Si Ollama está offline, inícialo con `ollama serve`
+        - Formatos soportados: PDF, TXT, DOCX, MD
+        - Archivos grandes tardan en procesar
+        - Limpia la caché del navegador si la UI se bloquea
         """)
     
     # Links
     st.sidebar.markdown("---")
-    st.sidebar.markdown("**Resources:**")
-    st.sidebar.markdown("• [Documentation](https://github.com/your-repo)")
-    st.sidebar.markdown("• [Report Issues](https://github.com/your-repo/issues)")
-    st.sidebar.markdown("• [Ollama Setup](https://ollama.ai)")
+    st.sidebar.markdown("**Recursos:**")
+    st.sidebar.markdown("• [Documentación](https://github.com/your-repo)")
+    st.sidebar.markdown("• [Reportar issues](https://github.com/your-repo/issues)")
+    st.sidebar.markdown("• [Configuración de Ollama](https://ollama.ai)")
 
 def display_danger_zone():
-    """Display dangerous actions with warnings."""
-    with st.sidebar.expander("⚠️ Danger Zone", expanded=False):
-        st.warning("These actions cannot be undone!")
+    """Mostrar acciones peligrosas con advertencias."""
+    with st.sidebar.expander("⚠️ Zona de peligro", expanded=False):
+        st.warning("¡Estas acciones no se pueden deshacer!")
         
-        if st.button("🗑️ Clear All Data", type="secondary"):
+        if st.button("🗑️ Borrar todos los datos", type="secondary"):
             return "clear_all"
         
-        if st.button("🔄 Reset System", type="secondary"):
+        if st.button("🔄 Reiniciar sistema", type="secondary"):
             return "reset_system"
     
     return None

@@ -103,7 +103,7 @@ class ChromaVectorStore(VectorStore):
         except Exception as e:
             raise ValueError(f"Failed to add documents to ChromaDB: {e}")
     
-    def search(self, query, k: int = 5) -> List[Dict]:
+    def search(self, query, k: int = 5, where: Dict = None, where_document: Dict = None) -> List[Dict]:
         """
         Search for semantically similar documents.
 
@@ -128,16 +128,25 @@ class ChromaVectorStore(VectorStore):
 
             # Detect whether query is embedding vector or text
             if isinstance(query, (list, tuple)):
+                # Avoid passing empty filter dicts which some Chroma versions reject
+                effective_where = where if where else None
+                effective_where_doc = where_document if where_document else None
                 results = self.collection.query(
                     query_embeddings=[list(query)],
-                    n_results=k
+                    n_results=k,
+                    where=effective_where,
+                    where_document=effective_where_doc
                 )
             else:
                 if not str(query).strip():
                     return []
+                effective_where = where if where else None
+                effective_where_doc = where_document if where_document else None
                 results = self.collection.query(
                     query_texts=[str(query)],
-                    n_results=k
+                    n_results=k,
+                    where=effective_where,
+                    where_document=effective_where_doc
                 )
 
             search_results = []

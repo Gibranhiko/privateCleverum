@@ -6,6 +6,7 @@ from privategpt.core.processors.factory import DocumentProcessorFactory
 from privategpt.core.embeddings.embedding_service import EmbeddingService
 from privategpt.core.chunking.text_chunker import TextChunker
 from privategpt.core.storage.chroma_store import ChromaVectorStore
+from privategpt.core.utils.helpers import normalize_text
 
 class PrivateGPT:
     """
@@ -81,6 +82,22 @@ class PrivateGPT:
             documents = []
             for i, (chunk, embedding) in enumerate(zip(doc_chunks, embeddings)):
                 chunk_id = f"{doc_id}_{i}"
+                # Extract simple metadata
+                patient_name = None
+                if "- Paciente:" in chunk:
+                    try:
+                        patient_name = chunk.split("- Paciente:",1)[1].split("(")[0].strip()
+                    except Exception:
+                        patient_name = None
+                # Infer topic from chunk content
+                lower_chunk = chunk.lower()
+                inferred_topic = 'general'
+                if patient_name:
+                    inferred_topic = 'patients'
+                if any(k in lower_chunk for k in ["cita", "próxima cita", "proxima cita", "agenda", "programación"]):
+                    inferred_topic = 'appointments'
+                if any(k in lower_chunk for k in ["tratamiento", "procedimiento", "ortodoncia", "endodoncia", "extracción", "extraccion"]):
+                    inferred_topic = 'treatments'
                 documents.append({
                     'id': chunk_id,
                     'text': chunk,
@@ -89,7 +106,10 @@ class PrivateGPT:
                         'filename': display_name,
                         'doc_id': doc_id,
                         'chunk_id': i,
-                        'file_path': str(file_path)
+                        'file_path': str(file_path),
+                        'patient_name': patient_name,
+                        'normalized_name': normalize_text(patient_name) if patient_name else None,
+                        'topic': inferred_topic
                     }
                 })
             
@@ -113,17 +133,45 @@ class PrivateGPT:
                 'doc_info': None
             }
     
-    def search(self, query: str, k: int = 5) -> List[Dict]:
-        """Search for relevant chunks."""
-        # Generate embedding for the query
+    def search(self, query: str, k: int = 8, filters: Optional[Dict] = None) -> List[Dict]:
+        """Search for relevant chunks with optional filters and simple re-ranking."""
+        # Try embedding search first
         query_embedding = self.embedding_service.get_embedding(query)
-        return self.vector_store.search(query_embedding, k)  # Fixed: Pass embedding instead of text
+        results = self.vector_store.search(query_embedding, k, where=(filters if filters else None))
+        
+        # Simple re-ranking: boost matches on normalized_name if present in query
+        qn = normalize_text(query)
+        for r in results:
+            meta = r.get('metadata', {})
+            score = r.get('relevance_score') or 0
+            if meta.get('normalized_name') and meta['normalized_name'] in qn:
+                r['relevance_score'] = score + 0.1
+                r['boost_reason'] = 'name_match'
+        results.sort(key=lambda x: x.get('relevance_score') or 0, reverse=True)
+        return results
     
     def generate_answer(self, question: str, model: str = "llama3.2", 
-                       max_chunks: int = 3) -> Dict[str, any]:
+                       max_chunks: int = 5, filters: Optional[Dict] = None, **kwargs) -> Dict[str, any]:
         """Generate an AI answer based on relevant document chunks."""
+        # Backward-compat for callers passing filters via kwargs
+        if filters is None:
+            filters = kwargs.get('filters')
+
         # Get relevant context
-        search_results = self.search(question, max_chunks)
+        search_results = self.search(question, max_chunks, filters)
+
+        # Optional simple date filter post-processing
+        # If filters include a 'date' string, perform a basic contains match
+        # against text and metadata fields to keep chunks likely relevant.
+        if filters and isinstance(filters.get('date'), str) and filters.get('date').strip():
+            date_str = filters.get('date').strip()
+            def _matches_date(res):
+                meta = res.get('metadata', {})
+                text = res.get('text', '') or res.get('document', '') or ''
+                return (date_str in text) or any(
+                    (isinstance(v, str) and date_str in v) for v in meta.values()
+                )
+            search_results = [r for r in search_results if _matches_date(r)]
         
         if not search_results:
             return {
@@ -142,6 +190,13 @@ class PrivateGPT:
             context_parts.append(f"[Source: {filename}]\n{text}")
         context = "\n\n---\n\n".join(context_parts)
         
+        # Basic metrics
+        metrics = {
+            'top_k': len(search_results),
+            'avg_score': round(sum([(r.get('relevance_score') or 0) for r in search_results]) / max(len(search_results),1), 3),
+            'filters': filters or {},
+        }
+
         # Generate answer using AI service if available
         if self.ai_service.available:
             try:
@@ -151,7 +206,8 @@ class PrivateGPT:
                     'sources': search_results,
                     'has_sources': True,
                     'ollama_used': True,
-                    'context': context
+                    'context': context,
+                    'metrics': metrics,
                 }
             except Exception as e:
                 return {
@@ -159,15 +215,17 @@ class PrivateGPT:
                     'sources': search_results,
                     'has_sources': True,
                     'ollama_used': False,
-                    'context': context
+                    'context': context,
+                    'metrics': metrics,
                 }
         else:
             return {
-                'answer': "AI model not available. Here's the relevant context from your documents:",
+                'answer': "No hay modelo AI disponible. Pasajes relevantes:",
                 'sources': search_results,
                 'has_sources': True,
                 'ollama_used': False,
-                'context': context
+                'context': context,
+                'metrics': metrics,
             }
     
     def get_documents(self) -> List[Dict]:

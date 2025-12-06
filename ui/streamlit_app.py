@@ -34,8 +34,8 @@ if 'private_gpt' not in st.session_state:
 private_gpt = st.session_state.private_gpt
 
 # --- Sidebar ---
-system_ok = display_system_status(private_gpt)
 nav = display_navigation_menu()
+system_ok = display_system_status(private_gpt)
 danger_action = display_danger_zone()
 display_help_section()
 
@@ -69,14 +69,14 @@ elif nav == "chat":
     chat = ChatInterface(private_gpt)
     chat.display_chat_interface()
 elif nav == "statistics":
-    st.subheader("📈 System Statistics")
+    st.subheader("📈 Estadísticas del sistema")
     stats = private_gpt.get_document_stats() if hasattr(private_gpt, 'get_document_stats') else {}
     if stats:
         st.json(stats)
     else:
-        st.info("Statistics functionality coming soon!")
+        st.info("¡La funcionalidad de estadísticas llegará pronto!")
 elif nav == "settings":
-    st.subheader("⚙️ Settings")
-    st.info("Settings page coming soon!")
+    st.subheader("⚙️ Configuración")
+    st.info("¡La página de configuración llegará pronto!")
 else:
-    st.info("Select a page from the sidebar.")
+    st.info("Selecciona una página desde la barra lateral.")

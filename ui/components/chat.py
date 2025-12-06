@@ -12,15 +12,15 @@ class ChatInterface:
     
     def display_chat_interface(self):
         """Display the main chat interface."""
-        st.subheader("💬 Chat with Your Documents")
+        st.subheader("💬 Chatea con tus documentos")
         
         if not self.private_gpt:
-            st.error("System not initialized. Please check your setup.")
+            st.error("Sistema no inicializado. Por favor, revisa tu configuración.")
             return
         
         # Check if documents exist
         if not self._check_documents_exist():
-            st.info("📝 Please upload some documents first before chatting!")
+            st.info("📝 Por favor, sube algunos documentos antes de chatear.")
             return
         
         # Display chat settings
@@ -45,44 +45,51 @@ class ChatInterface:
             return False
     
     def _display_chat_settings(self):
-        """Display chat configuration settings."""
-        with st.expander("⚙️ Chat Settings", expanded=False):
-            col1, col2, col3 = st.columns(3)
-            
-            with col1:
-                selected_model = st.selectbox(
-                    "AI Model", 
-                    self.available_models, 
-                    key="chat_model_select",
-                    help="Choose the AI model for generating responses"
+        """Display chat settings: only advanced filters for end users."""
+        with st.expander("⚙️ Filtros avanzados", expanded=True):
+            fcol1, fcol2, fcol3 = st.columns(3)
+
+            with fcol1:
+                patient_filter = st.text_input(
+                    "Paciente (nombre)",
+                    key="filter_patient_name",
+                    help="Filtra resultados por nombre del paciente"
                 )
-            
-            with col2:
-                max_chunks = st.number_input(
-                    "Max Sources", 
-                    min_value=1, 
-                    max_value=10,
-                    value=3,
-                    key="chat_max_chunks",
-                    help="Maximum number of document chunks to use as context"
+            with fcol2:
+                # Mostrar en español pero mapear a valores internos
+                topic_labels = ["(todos)", "Pacientes", "Citas", "Tratamientos", "Políticas", "FAQs", "General"]
+                label_to_value = {
+                    "Pacientes": "patients",
+                    "Citas": "appointments",
+                    "Tratamientos": "treatments",
+                    "Políticas": "policies",
+                    "FAQs": "faqs",
+                    "General": "general",
+                }
+                topic_label = st.selectbox(
+                    "Tema",
+                    topic_labels,
+                    key="filter_topic",
+                    help="Filtra por tema detectado en metadatos"
                 )
-            
-            with col3:
-                temperature = st.slider(
-                    "Creativity", 
-                    min_value=0.0, 
-                    max_value=1.0, 
-                    value=0.7,
-                    step=0.1,
-                    key="chat_temperature",
-                    help="Higher values make responses more creative"
+            with fcol3:
+                date_filter = st.text_input(
+                    "Fecha contiene (YYYY-MM)",
+                    key="filter_date_contains",
+                    help="Coincidencia simple en texto de fecha"
                 )
-            
-            return {
-                'model': selected_model,
-                'max_chunks': max_chunks,
-                'temperature': temperature
-            }
+
+            filters = {}
+            if patient_filter.strip():
+                # Expect normalized_name in metadata
+                from privategpt.core.utils.helpers import normalize_text
+                filters["normalized_name"] = normalize_text(patient_filter.strip())
+            if topic_label and topic_label != "(todos)":
+                filters["topic"] = label_to_value.get(topic_label)
+            # Note: date filter is simplistic; could be enhanced via where_document
+            # Persist filters in session state so submit uses them
+            st.session_state['filters'] = filters
+            st.session_state['date_contains'] = date_filter.strip()
     
     def _display_chat_history(self):
         """Display the conversation history."""
@@ -94,31 +101,13 @@ class ChatInterface:
         
         with chat_container:
             if not st.session_state.chat_history:
-                st.info("👋 Start a conversation by asking a question about your documents!")
-                self._display_suggested_questions()
+                st.info("👋 ¡Comienza una conversación preguntando sobre tus documentos!")
                 return
             
             for idx, message in enumerate(st.session_state.chat_history):
                 self._display_message(message, idx)
     
-    def _display_suggested_questions(self):
-        """Display suggested questions for users to get started."""
-        st.subheader("💡 Suggested Questions")
-        
-        suggestions = [
-            "What are the main topics covered in these documents?",
-            "Can you summarize the key points?",
-            "What are the most important findings or conclusions?",
-            "Are there any specific recommendations mentioned?",
-            "What questions does this document answer?"
-        ]
-        
-        col1, col2 = st.columns(2)
-        
-        for i, suggestion in enumerate(suggestions):
-            with col1 if i % 2 == 0 else col2:
-                if st.button(f"💬 {suggestion}", key=f"suggestion_{i}"):
-                    self._process_user_input(suggestion)
+    # Suggested questions removed per user request
     
     def _display_message(self, message, message_idx):
         """Display a single chat message."""
@@ -141,49 +130,68 @@ class ChatInterface:
             
             # Display feedback buttons
             self._display_message_feedback(message_idx)
+				
+            # Metrics panel
+            metrics = message.get("metrics")
+            if metrics:
+                st.markdown("### Métricas de búsqueda")
+                col1, col2 = st.columns(2)
+                with col1:
+                        st.metric(label="Top K", value=metrics.get("top_k", 0))
+                with col2:
+                        st.metric(label="Score promedio", value=metrics.get("avg_score", 0))
+                # Active filters summary
+                active_filters = metrics.get("filters", {})
+                if any(v for v in active_filters.values()):
+                    st.caption(
+                        f"Filtros activos: "
+                        f"paciente='{active_filters.get('patient', '')}', "
+                        f"tema='{active_filters.get('topic', '')}', "
+                        f"fecha='{active_filters.get('date', '')}'"
+                    )
     
     def _display_sources(self, sources, message_idx):
         """Display source citations for a message."""
-        with st.expander(f"📚 Sources ({len(sources)} documents)", expanded=False):
+        with st.expander(f"📚 Fuentes ({len(sources)} documentos)", expanded=False):
             for i, source in enumerate(sources):
                 col1, col2 = st.columns([3, 1])
                 
                 with col1:
-                    st.write(f"**{source.get('filename', 'Unknown')}**")
+                    st.write(f"**{source.get('filename', 'Desconocido')}**")
                     if 'content' in source:
                         # Show a preview of the content
                         preview = source['content'][:200] + "..." if len(source['content']) > 200 else source['content']
-                        st.caption(f"Preview: {preview}")
+                        st.caption(f"Vista previa: {preview}")
                 
                 with col2:
                     if 'page' in source:
-                        st.caption(f"Page: {source['page']}")
+                        st.caption(f"Página: {source['page']}")
                     if 'score' in source:
-                        st.caption(f"Relevance: {source['score']:.2f}")
+                        st.caption(f"Relevancia: {source['score']:.2f}")
         
         # Create source tags
         sources_html = "".join([
             f'<span class="source-tag">{source.get("filename", "Unknown")}</span>' 
             for source in sources
         ])
-        st.markdown(f"**Sources:** {sources_html}", unsafe_allow_html=True)
+        st.markdown(f"**Fuentes:** {sources_html}", unsafe_allow_html=True)
     
     def _display_message_feedback(self, message_idx):
         """Display feedback buttons for AI messages."""
         col1, col2, col3, col4 = st.columns([1, 1, 1, 6])
         
         with col1:
-            if st.button("👍", key=f"thumbs_up_{message_idx}", help="Good response"):
+            if st.button("👍", key=f"thumbs_up_{message_idx}", help="Buena respuesta"):
                 self._record_feedback(message_idx, "positive")
         
         with col2:
-            if st.button("👎", key=f"thumbs_down_{message_idx}", help="Poor response"):
+            if st.button("👎", key=f"thumbs_down_{message_idx}", help="Respuesta pobre"):
                 self._record_feedback(message_idx, "negative")
         
         with col3:
-            if st.button("📋", key=f"copy_{message_idx}", help="Copy to clipboard"):
+            if st.button("📋", key=f"copy_{message_idx}", help="Copiar al portapapeles"):
                 # In a real app, you'd implement clipboard functionality
-                st.toast("Response copied to clipboard!")
+                st.toast("¡Respuesta copiada al portapapeles!")
     
     def _record_feedback(self, message_idx, feedback_type):
         """Record user feedback for improving responses."""
@@ -192,7 +200,7 @@ class ChatInterface:
             st.session_state.message_feedback = {}
         
         st.session_state.message_feedback[message_idx] = feedback_type
-        st.toast(f"Thank you for your feedback! 😊")
+        st.toast(f"¡Gracias por tu retroalimentación! 😊")
     
     def _display_chat_input(self):
         """Display the chat input form."""
@@ -201,14 +209,14 @@ class ChatInterface:
             
             with col1:
                 user_question = st.text_input(
-                    "Ask a question about your documents:",
-                    placeholder="What would you like to know?",
+                    "Pregunta sobre tus documentos:",
+                    placeholder="¿Qué te gustaría saber?",
                     label_visibility="collapsed",
                     key="chat_input"
                 )
             
             with col2:
-                send_button = st.form_submit_button("Send 📤", type="primary", use_container_width=True)
+                send_button = st.form_submit_button("Enviar 📤", type="primary", use_container_width=True)
         
         # Process input when form is submitted
         if send_button and user_question.strip():
@@ -231,12 +239,13 @@ class ChatInterface:
         })
         
         # Generate AI response
-        with st.spinner("🤔 Thinking..."):
+        with st.spinner("🤔 Pensando..."):
             try:
                 response = self.private_gpt.generate_answer(
                     user_question, 
                     settings['model'], 
-                    settings['max_chunks']
+                    settings['max_chunks'],
+                    filters=settings.get('filters')
                 )
                 
                 # Add AI response to history
@@ -250,12 +259,15 @@ class ChatInterface:
                 if response.get('has_sources') and response.get('sources'):
                     ai_message["sources"] = response['sources']
                 
+                # Attach basic metrics if provided
+                if 'metrics' in response:
+                    ai_message['metrics'] = response['metrics']
                 st.session_state.chat_history.append(ai_message)
                 
             except Exception as e:
                 error_message = {
                     "role": "assistant",
-                    "content": f"🚨 Sorry, I encountered an error: {str(e)}",
+                    "content": f"🚨 Lo siento, ocurrió un error: {str(e)}",
                     "timestamp": datetime.now().isoformat(),
                     "error": True
                 }
@@ -269,59 +281,59 @@ class ChatInterface:
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            if st.button("🗑️ Clear Chat", help="Clear conversation history"):
+            if st.button("🗑️ Limpiar chat", help="Limpiar historial de conversación"):
                 self._clear_chat()
         
         with col2:
-            if st.button("💾 Export Chat", help="Export conversation as text"):
+            if st.button("💾 Exportar chat", help="Exportar conversación como texto"):
                 self._export_chat()
         
         with col3:
-            if st.button("🔄 Regenerate Last", help="Regenerate the last AI response"):
+            if st.button("🔄 Regenerar última", help="Regenerar la última respuesta de IA"):
                 self._regenerate_last_response()
         
         with col4:
             # Chat statistics
             total_messages = len(st.session_state.get('chat_history', []))
-            st.caption(f"💬 {total_messages} messages")
+            st.caption(f"💬 {total_messages} mensajes")
     
     def _clear_chat(self):
         """Clear the chat history after confirmation."""
         if st.session_state.get('confirm_clear_chat', False):
             st.session_state.chat_history = []
             st.session_state.confirm_clear_chat = False
-            st.success("✅ Chat history cleared!")
+            st.success("✅ ¡Historial del chat limpiado!")
             time.sleep(1)
             st.rerun()
         else:
             st.session_state.confirm_clear_chat = True
-            st.warning("⚠️ Click again to confirm clearing chat history!")
+            st.warning("⚠️ ¡Haz clic de nuevo para confirmar la limpieza del historial!")
     
     def _export_chat(self):
         """Export chat history as downloadable text."""
         if not st.session_state.get('chat_history'):
-            st.warning("No chat history to export!")
+            st.warning("¡No hay historial de chat para exportar!")
             return
         
         # Format chat history as text
-        chat_text = "# PrivateGPT Chat Export\n\n"
-        chat_text += f"Exported on: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+        chat_text = "# Exportación de chat de PrivateGPT\n\n"
+        chat_text += f"Exportado el: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
         
         for message in st.session_state.chat_history:
-            role = "You" if message["role"] == "user" else "AI Assistant"
+            role = "Tú" if message["role"] == "user" else "Asistente IA"
             timestamp = message.get("timestamp", "Unknown time")
             chat_text += f"## {role} ({timestamp})\n"
             chat_text += f"{message['content']}\n\n"
             
             if "sources" in message:
-                chat_text += "### Sources:\n"
+                chat_text += "### Fuentes:\n"
                 for source in message["sources"]:
-                    chat_text += f"- {source.get('filename', 'Unknown')}\n"
+                    chat_text += f"- {source.get('filename', 'Desconocido')}\n"
                 chat_text += "\n"
         
         # Provide download button
         st.download_button(
-            label="📥 Download Chat History",
+            label="📥 Descargar historial de chat",
             data=chat_text,
             file_name=f"privategpt_chat_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
             mime="text/plain"
@@ -330,7 +342,7 @@ class ChatInterface:
     def _regenerate_last_response(self):
         """Regenerate the last AI response."""
         if not st.session_state.get('chat_history'):
-            st.warning("No messages to regenerate!")
+            st.warning("¡No hay mensajes para regenerar!")
             return
         
         # Find the last user message

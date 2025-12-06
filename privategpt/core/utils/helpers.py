@@ -3,6 +3,7 @@
 import os
 from pathlib import Path
 from typing import Union
+import unicodedata
 
 
 def validate_file_path(file_path: Union[str, Path]) -> Path:
@@ -35,3 +36,11 @@ def ensure_directory_exists(directory: Union[str, Path]) -> Path:
     path = Path(directory)
     path.mkdir(parents=True, exist_ok=True)
     return path
+
+def normalize_text(text: str) -> str:
+    """Lowercase and remove accents for robust matching."""
+    if not isinstance(text, str):
+        return ""
+    text = text.lower()
+    nfkd = unicodedata.normalize("NFKD", text)
+    return "".join([c for c in nfkd if not unicodedata.combining(c)])

@@ -44,7 +44,7 @@ Thumbs.db
 .streamlit/
 
 # ChromaDB / index data (do not commit large DB files)
-index/
+/index/
 
 # Local data and uploads
 /data/
