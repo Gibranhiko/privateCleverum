@@ -107,19 +107,23 @@ class PrivateGPT:
                     inferred_topic = 'appointments'
                 if any(k in lower_chunk for k in ["tratamiento", "procedimiento", "ortodoncia", "endodoncia", "extracción", "extraccion"]):
                     inferred_topic = 'treatments'
+                # Build metadata and remove None values to satisfy ChromaDB
+                metadata = {
+                    'filename': display_name,
+                    'doc_id': doc_id,
+                    'chunk_id': i,
+                    'file_path': str(file_path),
+                    'patient_name': patient_name,
+                    'normalized_name': normalize_text(patient_name) if patient_name else None,
+                    'topic': inferred_topic
+                }
+                metadata = {k: v for k, v in metadata.items() if v is not None}
+
                 documents.append({
                     'id': chunk_id,
                     'text': chunk,
                     'embedding': embedding,
-                    'metadata': {
-                        'filename': display_name,
-                        'doc_id': doc_id,
-                        'chunk_id': i,
-                        'file_path': str(file_path),
-                        'patient_name': patient_name,
-                        'normalized_name': normalize_text(patient_name) if patient_name else None,
-                        'topic': inferred_topic
-                    }
+                    'metadata': metadata
                 })
             
             # Add to vector store

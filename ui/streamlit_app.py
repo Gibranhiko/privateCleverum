@@ -48,7 +48,7 @@ if danger_action == "clear_all":
     result = private_gpt.clear_all_documents()
     if result['success']:
         st.sidebar.success("✅ All data cleared!")
-        st.experimental_rerun()
+        st.rerun()
     else:
         st.sidebar.error(f"Error: {result['message']}")
 
