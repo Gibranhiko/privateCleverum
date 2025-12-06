@@ -64,14 +64,14 @@ class OllamaService(AIService):
         
         model_name = model or self.default_model
         
-        prompt = f"""Based on the following context from documents, answer the question accurately and concisely. If the context doesn't contain enough information, say so clearly.
+        prompt = f"""Basándote en el siguiente contexto de documentos, responde la pregunta de manera precisa y concisa en ESPAÑOL. Si el contexto no contiene suficiente información, indícalo claramente.
 
-Context:
+Contexto:
 {context}
 
-Question: {question}
+Pregunta: {question}
 
-Answer:"""
+Respuesta:"""
         
         # Merge additional options
         options = {

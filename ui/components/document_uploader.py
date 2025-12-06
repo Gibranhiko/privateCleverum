@@ -19,6 +19,10 @@ class DocumentManager:
             st.error("System not initialized. Please check your setup.")
             return
         
+        # Initialize session state for tracking uploaded file names
+        if 'processed_files' not in st.session_state:
+            st.session_state.processed_files = set()
+        
         # File upload widget
         uploaded_files = st.file_uploader(
             "Choose files to upload",
@@ -28,7 +32,16 @@ class DocumentManager:
         )
         
         if uploaded_files:
-            self._process_uploaded_files(uploaded_files)
+            # Filter out already processed files
+            new_files = [f for f in uploaded_files if f.name not in st.session_state.processed_files]
+            
+            if new_files:
+                self._process_uploaded_files(new_files)
+                # Mark files as processed
+                for f in new_files:
+                    st.session_state.processed_files.add(f.name)
+            elif uploaded_files:
+                st.info("✅ All selected files have already been processed.")
     
     def _process_uploaded_files(self, uploaded_files):
         """Process and add uploaded files to the system."""
@@ -61,9 +74,6 @@ class DocumentManager:
                 with st.expander(f"⚠️ {len(errors)} file(s) failed (click to see details)"):
                     for error in errors:
                         st.markdown(error)
-            # Refresh the page to show new documents
-            time.sleep(1)
-            st.rerun()
         elif len(uploaded_files) > 0:
             st.error(f"❌ Could not process any of the {len(uploaded_files)} file(s):")
             for error in errors:
